@@ -23,6 +23,12 @@ def on_startup() -> None:
     init_db()
 
 
+@app.get("/")
+def root() -> dict:
+    """Return a greeting message."""
+    return {"message": "Hello Stranger!"}
+
+
 @app.get("/users", response_model=List[schemas.UserRead])
 def list_users(db: Session = Depends(get_db)) -> List[models.User]:
     """Return all users in the database."""
@@ -75,7 +81,7 @@ def update_user(
     return db_user
 
 
-@app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> None:
     """Delete a user from the database."""
     db_user = db.query(models.User).filter(models.User.id == str(user_id)).first()

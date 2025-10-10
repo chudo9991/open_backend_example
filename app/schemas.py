@@ -13,6 +13,8 @@ from .models import WorkingFormatEnum
 class UserBase(BaseModel):
     name: str = Field(..., description="Имя сотрудника", max_length=100)
     surname: str = Field(..., description="Фамилия сотрудника", max_length=100)
+    email: Optional[str] = Field(None, description="Email сотрудника", max_length=255)
+    phone: Optional[str] = Field(None, description="Номер телефона", max_length=20)
     city: Optional[str] = Field(None, description="Город проживания", max_length=100)
     working_format: WorkingFormatEnum = Field(
         WorkingFormatEnum.REMOTE, description="Формат работы"
@@ -28,6 +30,8 @@ class UserUpdate(BaseModel):
 
     name: Optional[str] = Field(None, max_length=100)
     surname: Optional[str] = Field(None, max_length=100)
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=20)
     city: Optional[str] = Field(None, max_length=100)
     working_format: Optional[WorkingFormatEnum] = None
 

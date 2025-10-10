@@ -14,12 +14,32 @@
 | `created_at`        | datetime (timezone)    | Дата создания записи             |
 | `name`              | varchar(100)           | Имя сотрудника                   |
 | `surname`           | varchar(100)           | Фамилия сотрудника               |
+| `email`             | varchar(255)           | Email сотрудника                 |
+| `phone`             | varchar(20)            | Номер телефона                   |
 | `city`              | varchar(100)           | Город проживания                 |
 | `working_format`    | enum(remote/office/…)  | Формат работы                    |
 
 Enum `working_format_enum` содержит значения `remote`, `office`, `hybrid`.
 
-## Локальный запуск
+## Запуск через Docker
+
+1. Запустите приложение с помощью Docker Compose:
+
+   ```bash
+   docker-compose up -d
+   ```
+
+2. Приложение будет доступно по адресу `http://localhost:8000`
+
+3. Для остановки:
+
+   ```bash
+   docker-compose down
+   ```
+
+База данных SQLite создается внутри контейнера. Данные будут потеряны при удалении контейнера.
+
+## Локальный запуск без Docker
 
 1. Создайте и активируйте виртуальное окружение Python 3.10+.
 2. Установите зависимости:
