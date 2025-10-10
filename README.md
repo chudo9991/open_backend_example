@@ -29,7 +29,7 @@ Enum `working_format_enum` содержит значения `remote`, `office`,
    docker-compose up -d
    ```
 
-2. Приложение будет доступно по адресу `http://localhost:8000`
+2. Приложение будет доступно по адресу `http://localhost:8001`
 
 3. Для остановки:
 
@@ -38,6 +38,15 @@ Enum `working_format_enum` содержит значения `remote`, `office`,
    ```
 
 База данных SQLite создается внутри контейнера. Данные будут потеряны при удалении контейнера.
+
+### Заполнение тестовыми данными
+
+Для заполнения базы данных 40 фейковыми записями пользователей:
+
+```bash
+docker cp seed_db.py open_backend_example-app-1:/app/
+docker compose exec app python seed_db.py
+```
 
 ## Локальный запуск без Docker
 
@@ -65,7 +74,7 @@ export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/mydb
 
 ## Примеры запросов
 
-После запуска FastAPI документация доступна по адресу `http://127.0.0.1:8000/docs`.
+После запуска FastAPI документация доступна по адресу `http://127.0.0.1:8000/docs` (или `http://127.0.0.1:8001/docs` при запуске через Docker).
 Можно использовать следующие запросы:
 
 - `POST /users` — создание пользователя;
