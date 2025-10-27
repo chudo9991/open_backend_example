@@ -14,7 +14,7 @@ processing_tasks: Dict[str, asyncio.Task] = {}
 
 async def call_ollama(prompt: str, model: str = "qwen3:4b") -> str:
     """Прямой вызов Ollama API"""
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(
             "http://open_backend_example-ollama-1:11434/api/generate",
             json={
@@ -36,7 +36,7 @@ async def process_ai_requests():
             # Обрабатываем запрос
             result = await call_ollama(
                 request['prompt'], 
-                request.get('model', 'qwen3:0.6b')
+                request.get('model', 'qwen3:4b')
             )
             
             # Возвращаем результат
@@ -44,7 +44,7 @@ async def process_ai_requests():
                 id=request_id,
                 response=result,
                 status='completed',
-                model=request.get('model', 'qwen3:0.6b'),
+                model=request.get('model', 'qwen3:4b'),
                 created_at=datetime.now()
             ))
             
