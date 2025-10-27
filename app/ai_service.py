@@ -16,7 +16,7 @@ async def call_ollama(prompt: str, model: str = "qwen3:0.6b") -> str:
     """Прямой вызов Ollama API"""
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
-            "http://ollama:11434/api/generate",
+            "http://open_backend_example-ollama-1:11434/api/generate",
             json={
                 "model": model,
                 "prompt": prompt,
