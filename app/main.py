@@ -100,7 +100,7 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> None:
 @app.post("/ai/generate", response_model=schemas.AIResponse)
 async def generate_text(request: schemas.AIGenerateRequest):
     """Генерация текста с помощью AI модели"""
-    return await queue_ai_request(request.prompt, "qwen3:4b")
+    return await queue_ai_request(request.prompt, request.model)
 
 
 @app.post("/ai/chat", response_model=schemas.AIResponse)

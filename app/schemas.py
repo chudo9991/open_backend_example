@@ -50,6 +50,7 @@ class UserRead(UserBase):
 class AIGenerateRequest(BaseModel):
     """Schema for AI text generation requests."""
     prompt: str = Field(..., description="Текст для генерации", max_length=2000)
+    model: str = Field("qwen3:4b", description="Модель для использования")
     max_tokens: Optional[int] = Field(100, description="Максимальное количество токенов")
     temperature: Optional[float] = Field(0.7, description="Температура генерации (0.0-1.0)")
 
@@ -57,7 +58,7 @@ class AIGenerateRequest(BaseModel):
 class AIChatRequest(BaseModel):
     """Schema for AI chat requests."""
     messages: List[dict] = Field(..., description="Список сообщений для чата")
-    model: str = Field("qwen3:0.6b", description="Модель для использования")
+    model: str = Field("qwen3:4b", description="Модель для использования")
 
 
 class AIResponse(BaseModel):
