@@ -75,7 +75,8 @@ export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/mydb
 ## Примеры запросов
 
 После запуска FastAPI документация доступна по адресу `http://127.0.0.1:8000/docs` (или `http://127.0.0.1:8001/docs` при запуске через Docker).
-Можно использовать следующие запросы:
+
+### CRUD операции с пользователями
 
 - `POST /users` — создание пользователя;
 - `GET /users` — список пользователей;
@@ -85,3 +86,34 @@ export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/mydb
 
 Каждый ответ соответствует Pydantic-схеме `UserRead` и содержит актуальную
 информацию по модели.
+
+### AI эндпоинты
+
+Приложение интегрировано с Ollama для работы с AI моделями:
+
+- `POST /ai/generate` — генерация текста по промпту;
+- `POST /ai/chat` — чат с AI моделью;
+- `GET /ai/models` — список доступных AI моделей;
+- `GET /ai/queue/status` — статус очереди AI запросов.
+
+#### Примеры AI запросов
+
+```bash
+# Генерация текста
+curl -X POST "http://localhost:8001/ai/generate" \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Привет! Как дела?", "model": "qwen3:0.6b"}'
+
+# Чат с AI
+curl -X POST "http://localhost:8001/ai/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "Расскажи историю"}], "model": "qwen3:0.6b"}'
+
+# Список моделей
+curl -X GET "http://localhost:8001/ai/models"
+
+# Статус очереди
+curl -X GET "http://localhost:8001/ai/queue/status"
+```
+
+Доступные модели: `qwen3:0.6b` (по умолчанию).
