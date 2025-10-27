@@ -116,4 +116,4 @@ curl -X GET "http://localhost:8001/ai/models"
 curl -X GET "http://localhost:8001/ai/queue/status"
 ```
 
-Доступные модели: `qwen3:0.6b`, `qwen3:4b` (по умолчанию).
+Доступные модели: `qwen3:0.6b`, `qwen3:4b`, `lakomoor/vikhr-llama-3.2-1b-instruct:1b` (по умолчанию).

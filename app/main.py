@@ -108,7 +108,7 @@ async def chat_with_ai(request: schemas.AIChatRequest):
     """Чат с AI моделью"""
     # Преобразуем сообщения в промпт
     prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in request.messages])
-    return await queue_ai_request(prompt, request.model or "qwen3:4b")
+    return await queue_ai_request(prompt, request.model or "lakomoor/vikhr-llama-3.2-1b-instruct:1b")
 
 
 @app.get("/ai/models")
@@ -123,13 +123,13 @@ async def list_models():
             models = [model["name"] for model in models_data.get("models", [])]
             return {
                 "models": models,
-                "default": "qwen3:4b"
+                "default": "lakomoor/vikhr-llama-3.2-1b-instruct:1b"
             }
     except Exception:
         # Fallback если Ollama недоступен
         return {
             "models": ["qwen3:0.6b", "qwen3:4b"],
-            "default": "qwen3:4b"
+            "default": "lakomoor/vikhr-llama-3.2-1b-instruct:1b"
         }
 
 

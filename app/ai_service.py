@@ -12,7 +12,7 @@ from .schemas import AIResponse
 ai_queue = Queue(maxsize=50)
 processing_tasks: Dict[str, asyncio.Task] = {}
 
-async def call_ollama(prompt: str, model: str = "qwen3:4b") -> str:
+async def call_ollama(prompt: str, model: str = "lakomoor/vikhr-llama-3.2-1b-instruct:1b") -> str:
     """Прямой вызов Ollama API"""
     async with httpx.AsyncClient(timeout=120.0) as client:
         response = await client.post(
@@ -36,7 +36,7 @@ async def process_ai_requests():
             # Обрабатываем запрос
             result = await call_ollama(
                 request['prompt'], 
-                request.get('model', 'qwen3:4b')
+                request.get('model', 'lakomoor/vikhr-llama-3.2-1b-instruct:1b')
             )
             
             # Возвращаем результат
@@ -44,7 +44,7 @@ async def process_ai_requests():
                 id=request_id,
                 response=result,
                 status='completed',
-                model=request.get('model', 'qwen3:4b'),
+                model=request.get('model', 'lakomoor/vikhr-llama-3.2-1b-instruct:1b'),
                 created_at=datetime.now()
             ))
             
@@ -53,7 +53,7 @@ async def process_ai_requests():
         finally:
             ai_queue.task_done()
 
-async def queue_ai_request(prompt: str, model: str = "qwen3:4b") -> AIResponse:
+async def queue_ai_request(prompt: str, model: str = "lakomoor/vikhr-llama-3.2-1b-instruct:1b") -> AIResponse:
     """Добавить запрос в очередь и дождаться результата"""
     request_id = str(uuid.uuid4())
     future = asyncio.Future()
