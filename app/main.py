@@ -1,6 +1,7 @@
 """FastAPI application exposing CRUD operations for users."""
 from __future__ import annotations
 
+import asyncio
 from typing import List
 from uuid import UUID
 
@@ -9,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import models, schemas
+from .ai_service import process_ai_requests, queue_ai_request, ai_queue, processing_tasks
 from .database import Base, engine, get_db, init_db
 
 # Ensure the database tables exist when the application starts.
@@ -18,9 +20,11 @@ app = FastAPI(title="Open Backend Example", version="0.1.0")
 
 
 @app.on_event("startup")
-def on_startup() -> None:
-    """Initialize the database when the application starts."""
+async def on_startup() -> None:
+    """Initialize the database and start AI worker when the application starts."""
     init_db()
+    # Запускаем AI воркер
+    asyncio.create_task(process_ai_requests())
 
 
 @app.get("/")
@@ -90,3 +94,37 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> None:
 
     db.delete(db_user)
     db.commit()
+
+
+# AI Endpoints
+@app.post("/ai/generate", response_model=schemas.AIResponse)
+async def generate_text(request: schemas.AIGenerateRequest):
+    """Генерация текста с помощью qwen3:0.6b"""
+    return await queue_ai_request(request.prompt, "qwen3:0.6b")
+
+
+@app.post("/ai/chat", response_model=schemas.AIResponse)
+async def chat_with_ai(request: schemas.AIChatRequest):
+    """Чат с AI моделью"""
+    # Преобразуем сообщения в промпт
+    prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in request.messages])
+    return await queue_ai_request(prompt, request.model)
+
+
+@app.get("/ai/models")
+async def list_models():
+    """Список доступных моделей"""
+    return {
+        "models": ["qwen3:0.6b"],
+        "default": "qwen3:0.6b"
+    }
+
+
+@app.get("/ai/queue/status")
+async def queue_status():
+    """Статус очереди AI запросов"""
+    return {
+        "queue_size": ai_queue.qsize(),
+        "max_queue_size": ai_queue.maxsize,
+        "processing_tasks": len(processing_tasks)
+    }
