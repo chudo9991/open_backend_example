@@ -99,8 +99,8 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> None:
 # AI Endpoints
 @app.post("/ai/generate", response_model=schemas.AIResponse)
 async def generate_text(request: schemas.AIGenerateRequest):
-    """Генерация текста с помощью qwen3:0.6b"""
-    return await queue_ai_request(request.prompt, "qwen3:0.6b")
+    """Генерация текста с помощью AI модели"""
+    return await queue_ai_request(request.prompt, "qwen3:4b")
 
 
 @app.post("/ai/chat", response_model=schemas.AIResponse)
@@ -108,16 +108,29 @@ async def chat_with_ai(request: schemas.AIChatRequest):
     """Чат с AI моделью"""
     # Преобразуем сообщения в промпт
     prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in request.messages])
-    return await queue_ai_request(prompt, request.model)
+    return await queue_ai_request(prompt, request.model or "qwen3:4b")
 
 
 @app.get("/ai/models")
 async def list_models():
     """Список доступных моделей"""
-    return {
-        "models": ["qwen3:0.6b"],
-        "default": "qwen3:0.6b"
-    }
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get("http://open_backend_example-ollama-1:11434/api/tags")
+            response.raise_for_status()
+            models_data = response.json()
+            models = [model["name"] for model in models_data.get("models", [])]
+            return {
+                "models": models,
+                "default": "qwen3:4b"
+            }
+    except Exception:
+        # Fallback если Ollama недоступен
+        return {
+            "models": ["qwen3:0.6b", "qwen3:4b"],
+            "default": "qwen3:4b"
+        }
 
 
 @app.get("/ai/queue/status")

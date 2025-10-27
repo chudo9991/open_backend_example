@@ -12,7 +12,7 @@ from .schemas import AIResponse
 ai_queue = Queue(maxsize=50)
 processing_tasks: Dict[str, asyncio.Task] = {}
 
-async def call_ollama(prompt: str, model: str = "qwen3:0.6b") -> str:
+async def call_ollama(prompt: str, model: str = "qwen3:4b") -> str:
     """Прямой вызов Ollama API"""
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
@@ -53,7 +53,7 @@ async def process_ai_requests():
         finally:
             ai_queue.task_done()
 
-async def queue_ai_request(prompt: str, model: str = "qwen3:0.6b") -> AIResponse:
+async def queue_ai_request(prompt: str, model: str = "qwen3:4b") -> AIResponse:
     """Добавить запрос в очередь и дождаться результата"""
     request_id = str(uuid.uuid4())
     future = asyncio.Future()
