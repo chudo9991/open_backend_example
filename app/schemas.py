@@ -11,13 +11,13 @@ from .models import WorkingFormatEnum
 
 
 class UserBase(BaseModel):
-    name: str = Field(..., description="Имя сотрудника", max_length=100)
-    surname: str = Field(..., description="Фамилия сотрудника", max_length=100)
-    email: Optional[str] = Field(None, description="Email сотрудника", max_length=255)
-    phone: Optional[str] = Field(None, description="Номер телефона", max_length=20)
-    city: Optional[str] = Field(None, description="Город проживания", max_length=100)
+    name: str = Field(..., description="Employee first name", max_length=100)
+    surname: str = Field(..., description="Employee last name", max_length=100)
+    email: Optional[str] = Field(None, description="Employee email", max_length=255)
+    phone: Optional[str] = Field(None, description="Employee phone number", max_length=20)
+    city: Optional[str] = Field(None, description="City of residence", max_length=100)
     working_format: WorkingFormatEnum = Field(
-        WorkingFormatEnum.REMOTE, description="Формат работы"
+        WorkingFormatEnum.REMOTE, description="Working format"
     )
 
 
@@ -46,19 +46,37 @@ class UserRead(UserBase):
         orm_mode = True
 
 
+# Chat schemas
+class MessageCreate(BaseModel):
+    """Schema for creating a chat message."""
+
+    author: str = Field(..., max_length=100)
+    text: str = Field(..., max_length=256)
+
+
+class MessageRead(MessageCreate):
+    """Schema returned in responses for chat messages."""
+
+    id: UUID
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
 # AI Schemas
 class AIGenerateRequest(BaseModel):
     """Schema for AI text generation requests."""
-    prompt: str = Field(..., description="Текст для генерации", max_length=2000)
-    model: str = Field("lakomoor/vikhr-llama-3.2-1b-instruct:1b", description="Модель для использования")
-    max_tokens: Optional[int] = Field(100, description="Максимальное количество токенов")
-    temperature: Optional[float] = Field(0.7, description="Температура генерации (0.0-1.0)")
+    prompt: str = Field(..., description="Prompt text", max_length=2000)
+    model: str = Field("lakomoor/vikhr-llama-3.2-1b-instruct:1b", description="Model name")
+    max_tokens: Optional[int] = Field(100, description="Maximum tokens")
+    temperature: Optional[float] = Field(0.7, description="Temperature (0.0-1.0)")
 
 
 class AIChatRequest(BaseModel):
     """Schema for AI chat requests."""
-    messages: List[dict] = Field(..., description="Список сообщений для чата")
-    model: str = Field("lakomoor/vikhr-llama-3.2-1b-instruct:1b", description="Модель для использования")
+    messages: List[dict] = Field(..., description="Chat messages")
+    model: str = Field("lakomoor/vikhr-llama-3.2-1b-instruct:1b", description="Model name")
 
 
 class AIResponse(BaseModel):

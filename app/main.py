@@ -1,4 +1,4 @@
-"""FastAPI application exposing CRUD operations for users."""
+# FastAPI application exposing CRUD operations for users.
 from __future__ import annotations
 
 import asyncio
@@ -10,32 +10,38 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import models, schemas
-from .ai_service import process_ai_requests, queue_ai_request, ai_queue, processing_tasks
+from .ai_service import (
+    AZURE_OPENAI_DEPLOYMENT,
+    process_ai_requests,
+    queue_ai_request,
+    ai_queue,
+    processing_tasks,
+)
 from .database import Base, engine, get_db, init_db
 
 # Ensure the database tables exist when the application starts.
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Open Backend Example", version="0.1.0")
+app = FastAPI(title="Open Backend Example", version="0.1.0", description="Эксперименты в Кванториуме, 2025")
 
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    """Initialize the database and start AI worker when the application starts."""
+    # Initialize the database and start AI worker when the application starts.
     init_db()
-    # Запускаем AI воркер
+    # Launch background worker for AI queue.
     asyncio.create_task(process_ai_requests())
 
 
 @app.get("/")
 def root() -> dict:
-    """Return a greeting message."""
+    # Return a greeting message.
     return {"message": "Hello Stranger!"}
 
 
 @app.get("/users", response_model=List[schemas.UserRead])
 def list_users(db: Session = Depends(get_db)) -> List[models.User]:
-    """Return all users in the database."""
+    # Return all users in the database.
     return db.query(models.User).order_by(models.User.created_at.desc()).all()
 
 
@@ -45,7 +51,7 @@ def list_users(db: Session = Depends(get_db)) -> List[models.User]:
     status_code=status.HTTP_201_CREATED,
 )
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)) -> models.User:
-    """Create a new user entry."""
+    # Create a new user entry.
     db_user = models.User(**user.dict())
     db.add(db_user)
     try:
@@ -59,7 +65,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)) -> mode
 
 @app.get("/users/{user_id}", response_model=schemas.UserRead)
 def get_user(user_id: UUID, db: Session = Depends(get_db)) -> models.User:
-    """Retrieve a single user by their identifier."""
+    # Retrieve a single user by ID.
     db_user = db.query(models.User).filter(models.User.id == str(user_id)).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -70,7 +76,7 @@ def get_user(user_id: UUID, db: Session = Depends(get_db)) -> models.User:
 def update_user(
     user_id: UUID, user_update: schemas.UserUpdate, db: Session = Depends(get_db)
 ) -> models.User:
-    """Partially update a user's data."""
+    # Partially update a user's data.
     db_user = db.query(models.User).filter(models.User.id == str(user_id)).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -87,7 +93,7 @@ def update_user(
 
 @app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> None:
-    """Delete a user from the database."""
+    # Delete a user from the database.
     db_user = db.query(models.User).filter(models.User.id == str(user_id)).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -96,16 +102,50 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> None:
     db.commit()
 
 
+# Chat endpoints
+@app.get("/messages", response_model=List[schemas.MessageRead])
+def list_messages(db: Session = Depends(get_db)) -> List[models.Message]:
+    # Return all chat messages oldest first.
+    return db.query(models.Message).order_by(models.Message.created_at).all()
+
+
+@app.post(
+    "/messages",
+    response_model=schemas.MessageRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_message(message: schemas.MessageCreate, db: Session = Depends(get_db)) -> models.Message:
+    # Store a new chat message.
+    db_message = models.Message(**message.dict())
+    db.add(db_message)
+    db.commit()
+    db.refresh(db_message)
+    return db_message
+
+
+@app.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
+def delete_message(message_id: UUID, author: str, db: Session = Depends(get_db)) -> None:
+    # Delete a message, but only the author's own message.
+    db_message = db.query(models.Message).filter(models.Message.id == str(message_id)).first()
+    if db_message is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    if db_message.author != author:
+        raise HTTPException(status_code=403, detail="You can only delete your own messages")
+
+    db.delete(db_message)
+    db.commit()
+
+
 # AI Endpoints
 @app.post("/ai/generate", response_model=schemas.AIResponse)
 async def generate_text(request: schemas.AIGenerateRequest):
-    """Генерация текста с помощью AI модели"""
+    # Generate text with the AI model.
     return await queue_ai_request(request.prompt, request.model)
 
 
 @app.post("/ai/chat", response_model=schemas.AIResponse)
 async def chat_with_ai(request: schemas.AIChatRequest):
-    """Чат с AI моделью"""
+    # Chat with the AI model.
     # Преобразуем сообщения в промпт
     prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in request.messages])
     return await queue_ai_request(prompt, request.model or "lakomoor/vikhr-llama-3.2-1b-instruct:1b")
@@ -113,29 +153,30 @@ async def chat_with_ai(request: schemas.AIChatRequest):
 
 @app.get("/ai/models")
 async def list_models():
-    """Список доступных моделей"""
+    # List of available models.
     import httpx
+    models = []
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get("http://open_backend_example-ollama-1:11434/api/tags")
             response.raise_for_status()
             models_data = response.json()
-            models = [model["name"] for model in models_data.get("models", [])]
-            return {
-                "models": models,
-                "default": "lakomoor/vikhr-llama-3.2-1b-instruct:1b"
-            }
+            models.extend(model["name"] for model in models_data.get("models", []))
     except Exception:
-        # Fallback если Ollama недоступен
-        return {
-            "models": ["qwen3:0.6b", "qwen3:4b"],
-            "default": "lakomoor/vikhr-llama-3.2-1b-instruct:1b"
-        }
+        models.extend(["qwen3:0.6b", "qwen3:4b"])
+
+    if AZURE_OPENAI_DEPLOYMENT:
+        models.append("gpt-4o")
+
+    return {
+        "models": models,
+        "default": "lakomoor/vikhr-llama-3.2-1b-instruct:1b"
+    }
 
 
 @app.get("/ai/queue/status")
 async def queue_status():
-    """Статус очереди AI запросов"""
+    # Status of the AI task queue.
     return {
         "queue_size": ai_queue.qsize(),
         "max_queue_size": ai_queue.maxsize,

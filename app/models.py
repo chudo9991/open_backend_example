@@ -12,9 +12,9 @@ from .database import Base
 class WorkingFormatEnum(str, enum.Enum):
     """Enumeration describing the working format of a user."""
 
-    REMOTE = "удалённо"
-    OFFICE = "офис"
-    HYBRID = "гибрид"
+    REMOTE = "remote"
+    OFFICE = "office"
+    HYBRID = "hybrid"
 
 
 class User(Base):
@@ -41,3 +41,17 @@ class User(Base):
             "email={0.email!r}, phone={0.phone!r}, city={0.city!r}, "
             "working_format={0.working_format!r})"
         ).format(self)
+
+
+class Message(Base):
+    """A single chat message stored in the ``messages`` table."""
+
+    __tablename__ = "messages"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    author = Column(String(100), nullable=False)
+    text = Column(String(256), nullable=False)
+
+    def __repr__(self) -> str:  # pragma: no cover - representation helper
+        return "Message(id={0.id!r}, author={0.author!r}, text={0.text!r})".format(self)
