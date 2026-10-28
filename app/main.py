@@ -11,11 +11,12 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .ai_service import (
-    AZURE_OPENAI_DEPLOYMENT,
-    process_ai_requests,
-    queue_ai_request,
+    DEFAULT_MODEL,
     ai_queue,
+    list_yandex_models,
+    process_ai_requests,
     processing_tasks,
+    queue_ai_request,
 )
 from .database import Base, engine, get_db, init_db
 
@@ -33,6 +34,7 @@ async def on_startup() -> None:
     asyncio.create_task(process_ai_requests())
 
 
+# Original JSON API root
 @app.get("/")
 def root() -> dict:
     # Return a greeting message.
@@ -148,30 +150,20 @@ async def chat_with_ai(request: schemas.AIChatRequest):
     # Chat with the AI model.
     # Преобразуем сообщения в промпт
     prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in request.messages])
-    return await queue_ai_request(prompt, request.model or "lakomoor/vikhr-llama-3.2-1b-instruct:1b")
+    return await queue_ai_request(prompt, request.model or DEFAULT_MODEL)
 
 
 @app.get("/ai/models")
 async def list_models():
-    # List of available models.
-    import httpx
-    models = []
+    # List of available AI models.
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get("http://open_backend_example-ollama-1:11434/api/tags")
-            response.raise_for_status()
-            models_data = response.json()
-            models.extend(model["name"] for model in models_data.get("models", []))
+        models = await list_yandex_models()
     except Exception:
-        models.extend(["qwen3:0.6b", "qwen3:4b"])
+        models = []
+    if not models:
+        models = [DEFAULT_MODEL]
 
-    if AZURE_OPENAI_DEPLOYMENT:
-        models.append("gpt-4o")
-
-    return {
-        "models": models,
-        "default": "lakomoor/vikhr-llama-3.2-1b-instruct:1b"
-    }
+    return {"models": models, "default": DEFAULT_MODEL}
 
 
 @app.get("/ai/queue/status")

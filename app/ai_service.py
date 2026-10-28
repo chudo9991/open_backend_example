@@ -1,4 +1,4 @@
-"""AI сервис для работы с Ollama и Azure OpenAI через очередь."""
+"""AI сервис для работы с Yandex AI Studio через очередь."""
 import asyncio
 import os
 import uuid
@@ -11,13 +11,10 @@ import httpx  # type: ignore[import]
 from .schemas import AIResponse
 
 # Константы конфигурации
-DEFAULT_MODEL = "lakomoor/vikhr-llama-3.2-1b-instruct:1b"
-AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT") or os.getenv(
-    "AZURE_OPENAI_DEPLOYMENT_NAME"
-)
-AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-05-01")
+YANDEX_BASE_URL = "https://ai.api.cloud.yandex.net/v1"
+YANDEX_API_KEY = os.getenv("YANDEX_API_KEY")
+YANDEX_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")
+DEFAULT_MODEL = os.getenv("YANDEX_DEFAULT_MODEL", "yandexgpt-lite")
 
 
 # Глобальная очередь и воркер
@@ -25,56 +22,56 @@ ai_queue = Queue(maxsize=50)
 processing_tasks: Dict[str, asyncio.Task] = {}
 
 
-async def call_ollama(prompt: str, model: str = DEFAULT_MODEL) -> str:
-    """Прямой вызов Ollama API."""
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(
-            "http://open_backend_example-ollama-1:11434/api/generate",
-            json={
-                "model": model,
-                "prompt": prompt,
-                "stream": False,
-            },
+def _headers() -> dict:
+    """Заголовки авторизации Yandex AI Studio."""
+    if not all([YANDEX_API_KEY, YANDEX_FOLDER_ID]):
+        raise RuntimeError(
+            "Yandex AI Studio не настроен. Задайте YANDEX_API_KEY и YANDEX_FOLDER_ID."
         )
-        response.raise_for_status()
-        return response.json()["response"]
-
-
-async def call_azure_openai(prompt: str) -> str:
-    """Вызов Azure OpenAI для модели gpt-4o."""
-    if not all([AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_DEPLOYMENT]):
-        raise RuntimeError("Azure OpenAI не настроен. Проверьте переменные окружения.")
-
-    url = (
-        f"{AZURE_OPENAI_ENDPOINT}/openai/deployments/"
-        f"{AZURE_OPENAI_DEPLOYMENT}/chat/completions"
-    )
-    params = {"api-version": AZURE_OPENAI_API_VERSION}
-    headers = {
-        "api-key": AZURE_OPENAI_API_KEY,
+    return {
+        "Authorization": f"Api-Key {YANDEX_API_KEY}",
+        "OpenAI-Project": YANDEX_FOLDER_ID,
         "Content-Type": "application/json",
     }
+
+
+def _resolve_model(model: str) -> str:
+    """Принимает полный URI ``gpt://...`` или короткое имя модели."""
+    if "://" in model:
+        return model
+    return f"gpt://{YANDEX_FOLDER_ID}/{model}/latest"
+
+
+async def call_yandex(prompt: str, model: str = DEFAULT_MODEL) -> str:
+    """Вызов chat/completions Yandex AI Studio (OpenAI-совместимый API)."""
     payload = {
+        "model": _resolve_model(model),
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
     }
 
     async with httpx.AsyncClient(timeout=120.0) as client:
-        response = await client.post(url, params=params, headers=headers, json=payload)
+        response = await client.post(
+            f"{YANDEX_BASE_URL}/chat/completions",
+            headers=_headers(),
+            json=payload,
+        )
         response.raise_for_status()
         data = response.json()
 
     try:
         return data["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as exc:  # pragma: no cover - safety net
-        raise RuntimeError("Некорректный ответ от Azure OpenAI") from exc
+        raise RuntimeError("Некорректный ответ от Yandex AI Studio") from exc
 
 
-async def dispatch_request(prompt: str, model: str) -> str:
-    """Маршрутизирует запрос к соответствующей модели."""
-    if model.lower() == "gpt-4o":
-        return await call_azure_openai(prompt)
-    return await call_ollama(prompt, model)
+async def list_yandex_models() -> list:
+    """Список доступных chat-моделей Yandex AI Studio."""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(f"{YANDEX_BASE_URL}/models", headers=_headers())
+        response.raise_for_status()
+        data = response.json()
+    return [m["id"] for m in data.get("data", []) if m["id"].startswith("gpt://")]
 
 
 async def process_ai_requests() -> None:
@@ -83,9 +80,9 @@ async def process_ai_requests() -> None:
         request = await ai_queue.get()
         try:
             request_id = request["id"]
-            model_name = request.get("model", DEFAULT_MODEL)
+            model_name = request.get("model") or DEFAULT_MODEL
 
-            result = await dispatch_request(request["prompt"], model_name)
+            result = await call_yandex(request["prompt"], model_name)
 
             request["future"].set_result(
                 AIResponse(

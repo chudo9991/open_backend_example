@@ -38,18 +38,21 @@ description: "Обязательная проверка перед каждым 
 ### ❌ Избыточная абстракция
 ```python
 # ПЛОХО - оверинжиниринг
-class AbstractInterviewGeneratorFactory:
+class AbstractGeneratorFactory:
     def create_generator(self, type: str) -> BaseGenerator:
-        if type == "ollama":
-            return OllamaGeneratorFactory().create()
+        if type == "yandex":
+            return YandexGeneratorFactory().create()
         elif type == "vllm":
             return VLLMGeneratorFactory().create()
 
 # ХОРОШО - простое решение
-def generate_interview_with_ollama(prompt: str) -> str:
-    response = requests.post("http://localhost:11434/api/generate", 
-                           json={"model": "qwen2.5:7b", "prompt": prompt})
-    return response.json()["response"]
+def generate_interview_with_yandex(prompt: str) -> str:
+    response = requests.post(
+        "https://ai.api.cloud.yandex.net/v1/chat/completions",
+        headers={"Authorization": f"Api-Key {YANDEX_API_KEY}"},
+        json={"model": YANDEX_MODEL, "messages": [{"role": "user", "content": prompt}]},
+    )
+    return response.json()["choices"][0]["message"]["content"]
 ```
 
 ### ❌ "На будущее" функциональность
@@ -67,7 +70,7 @@ class InterviewCacheManager:
 # ХОРОШО - простое решение
 def generate_interview(prompt: str) -> str:
     # Прямое обращение к модели
-    return call_ollama_api(prompt)
+    return call_yandex_api(prompt)
 ```
 
 ### ❌ Универсальные решения для специфических задач
@@ -76,7 +79,7 @@ def generate_interview(prompt: str) -> str:
 class UniversalConfigManager:
     def __init__(self):
         self.configs = {
-            "ollama": {"url": "http://localhost:11434"},
+            "yandex": {"url": "https://ai.api.cloud.yandex.net/v1"},
             "vllm": {"url": "http://localhost:8000"},
             "openai": {"api_key": "sk-..."},
             "anthropic": {"api_key": "..."}
@@ -86,8 +89,8 @@ class UniversalConfigManager:
         return self.configs.get(provider, {})
 
 # ХОРОШО - конкретное решение
-OLLAMA_URL = "http://localhost:11434"
-OLLAMA_MODEL = "qwen2.5:7b"
+YANDEX_BASE_URL = "https://ai.api.cloud.yandex.net/v1"
+YANDEX_MODEL = "yandexgpt-lite"
 ```
 
 ## ✅ Что делать
@@ -95,11 +98,14 @@ OLLAMA_MODEL = "qwen2.5:7b"
 ### ✅ Простые, понятные решения
 ```python
 # ХОРОШО - простое решение
-def generate_interview(topic: str, guest_background: str) -> list:
+def generate_interview(topic: str, guest_background: str) -> str:
     prompt = f"Создай интервью на тему '{topic}' с гостем: {guest_background}"
-    response = requests.post(f"{OLLAMA_URL}/api/generate", 
-                           json={"model": OLLAMA_MODEL, "prompt": prompt})
-    return parse_interview_response(response.json()["response"])
+    response = requests.post(
+        f"{YANDEX_BASE_URL}/chat/completions",
+        headers={"Authorization": f"Api-Key {YANDEX_API_KEY}"},
+        json={"model": YANDEX_MODEL, "messages": [{"role": "user", "content": prompt}]},
+    )
+    return response.json()["choices"][0]["message"]["content"]
 ```
 
 ### ✅ Решение конкретной проблемы
@@ -115,18 +121,21 @@ def create_audio_file(text: str, speaker: str) -> str:
 ### ✅ Переиспользование существующего кода
 ```python
 # ХОРОШО - переиспользование
-def call_ollama_api(prompt: str) -> str:
-    response = requests.post(f"{OLLAMA_URL}/api/generate", 
-                           json={"model": OLLAMA_MODEL, "prompt": prompt})
-    return response.json()["response"]
+def call_yandex_api(prompt: str) -> str:
+    response = requests.post(
+        f"{YANDEX_BASE_URL}/chat/completions",
+        headers={"Authorization": f"Api-Key {YANDEX_API_KEY}"},
+        json={"model": YANDEX_MODEL, "messages": [{"role": "user", "content": prompt}]},
+    )
+    return response.json()["choices"][0]["message"]["content"]
 
-def generate_interview(topic: str, guest_background: str) -> list:
+def generate_interview(topic: str, guest_background: str) -> str:
     prompt = f"Создай интервью на тему '{topic}' с гостем: {guest_background}"
-    return call_ollama_api(prompt)
+    return call_yandex_api(prompt)
 
 def generate_expert_comment(interview_text: str) -> str:
     prompt = f"Добавь экспертную оценку к интервью: {interview_text}"
-    return call_ollama_api(prompt)
+    return call_yandex_api(prompt)
 ```
 
 ## 🎯 Принципы для этого проекта
@@ -137,7 +146,7 @@ def generate_expert_comment(interview_text: str) -> str:
 - Простые функции вместо сложных классов
 
 ### 2. **Конкретные решения**
-- Один способ работы с Ollama
+- Один способ работы с Yandex AI Studio
 - Один способ работы с gTTS
 - Простые HTML/CSS/JS без фреймворков
 

@@ -68,15 +68,13 @@ class MessageRead(MessageCreate):
 class AIGenerateRequest(BaseModel):
     """Schema for AI text generation requests."""
     prompt: str = Field(..., description="Prompt text", max_length=2000)
-    model: str = Field("lakomoor/vikhr-llama-3.2-1b-instruct:1b", description="Model name")
-    max_tokens: Optional[int] = Field(100, description="Maximum tokens")
-    temperature: Optional[float] = Field(0.7, description="Temperature (0.0-1.0)")
+    model: str = Field("", description="Model name (empty = server default)")
 
 
 class AIChatRequest(BaseModel):
     """Schema for AI chat requests."""
     messages: List[dict] = Field(..., description="Chat messages")
-    model: str = Field("lakomoor/vikhr-llama-3.2-1b-instruct:1b", description="Model name")
+    model: str = Field("", description="Model name (empty = server default)")
 
 
 class AIResponse(BaseModel):

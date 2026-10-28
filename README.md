@@ -23,15 +23,23 @@ Enum `working_format_enum` содержит значения `remote`, `office`,
 
 ## Запуск через Docker
 
-1. Запустите приложение с помощью Docker Compose:
+1. Создайте файл `.env` с доступами к Yandex AI Studio:
+
+   ```bash
+   YANDEX_API_KEY=<API-ключ сервисного аккаунта>
+   YANDEX_FOLDER_ID=<идентификатор каталога>
+   YANDEX_DEFAULT_MODEL=yandexgpt-lite
+   ```
+
+2. Запустите приложение с помощью Docker Compose:
 
    ```bash
    docker-compose up -d
    ```
 
-2. Приложение будет доступно по адресу `http://localhost:8001`
+3. Приложение будет доступно по адресу `http://localhost:8001`
 
-3. Для остановки:
+4. Для остановки:
 
    ```bash
    docker-compose down
@@ -89,12 +97,27 @@ export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/mydb
 
 ### AI эндпоинты
 
-Приложение интегрировано с Ollama для работы с AI моделями:
+Приложение интегрировано с [Yandex AI Studio](https://yandex.cloud/ru/docs/ai-studio/)
+через OpenAI-совместимый API. Список моделей берётся динамически из каталога:
 
 - `POST /ai/generate` — генерация текста по промпту;
 - `POST /ai/chat` — чат с AI моделью;
 - `GET /ai/models` — список доступных AI моделей;
 - `GET /ai/queue/status` — статус очереди AI запросов.
+
+#### Настройка
+
+Задайте переменные окружения (см. `.env`):
+
+```bash
+export YANDEX_API_KEY=<API-ключ сервисного аккаунта>
+export YANDEX_FOLDER_ID=<идентификатор каталога>
+export YANDEX_DEFAULT_MODEL=yandexgpt-lite   # опционально
+```
+
+`model` можно указывать коротким именем (`yandexgpt-lite`) или полным URI
+(`gpt://<folder-id>/yandexgpt-lite/latest`). Пустое значение — модель по
+умолчанию.
 
 #### Примеры AI запросов
 
@@ -102,12 +125,12 @@ export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/mydb
 # Генерация текста
 curl -X POST "http://localhost:8001/ai/generate" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Привет! Как дела?", "model": "qwen3:0.6b"}'
+  -d '{"prompt": "Привет! Как дела?", "model": "yandexgpt-lite"}'
 
 # Чат с AI
 curl -X POST "http://localhost:8001/ai/chat" \
   -H "Content-Type: application/json" \
-  -d '{"messages": [{"role": "user", "content": "Расскажи историю"}], "model": "qwen3:0.6b"}'
+  -d '{"messages": [{"role": "user", "content": "Расскажи историю"}], "model": "yandexgpt-lite"}'
 
 # Список моделей
 curl -X GET "http://localhost:8001/ai/models"
@@ -116,4 +139,27 @@ curl -X GET "http://localhost:8001/ai/models"
 curl -X GET "http://localhost:8001/ai/queue/status"
 ```
 
-Доступные модели: `qwen3:0.6b`, `qwen3:4b`, `lakomoor/vikhr-llama-3.2-1b-instruct:1b` (по умолчанию).
+Доступные модели определяются каталогом: YandexGPT (`yandexgpt`,
+`yandexgpt-lite`, `yandexgpt-5-pro` и др.), а также открытые модели
+(`deepseek-v4-flash`, `qwen3.6-35b-a3b`, `gpt-oss-120b`, `aliceai-llm` и др.).
+
+## Деплой на VPS
+
+Продакшн-сервер: `45.144.30.194` (`ssh root@45.144.30.194`).
+Каталог проекта на сервере: `/opt/open_backend_example`.
+
+1. Скопировать файлы проекта на сервер (из корня репозитория):
+
+   ```bash
+   rsync -az \
+     --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' --exclude 'app.db' \
+     ./ root@45.144.30.194:/opt/open_backend_example/
+   ```
+
+2. Пересобрать и перезапустить контейнер:
+
+   ```bash
+   ssh root@45.144.30.194 'cd /opt/open_backend_example && docker compose down --remove-orphans && docker compose up -d --build'
+   ```
+
+Приложение доступно по адресу `http://45.144.30.194:8001`.
