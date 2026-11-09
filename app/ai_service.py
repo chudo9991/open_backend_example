@@ -42,6 +42,26 @@ def _resolve_model(model: str) -> str:
     return f"gpt://{YANDEX_FOLDER_ID}/{model}/latest"
 
 
+def yandex_headers() -> dict:
+    """Публичная обёртка над заголовками Yandex AI Studio.
+
+    Используется другими частями приложения, чтобы не дублировать логику
+    авторизации и проверку настроек каталога.
+    """
+    return _headers()
+
+
+def resolve_art_model(model: str) -> str:
+    """Принимает короткое имя YandexART или полный URI ``art://...``."""
+    if not YANDEX_FOLDER_ID:
+        raise RuntimeError(
+            "Yandex AI Studio не настроен. Задайте YANDEX_FOLDER_ID."
+        )
+    if "://" in model:
+        return model
+    return f"art://{YANDEX_FOLDER_ID}/{model}"
+
+
 async def call_yandex(prompt: str, model: str = DEFAULT_MODEL) -> str:
     """Вызов chat/completions Yandex AI Studio (OpenAI-совместимый API)."""
     payload = {

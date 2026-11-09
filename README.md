@@ -29,7 +29,12 @@ Enum `working_format_enum` содержит значения `remote`, `office`,
    YANDEX_API_KEY=<API-ключ сервисного аккаунта>
    YANDEX_FOLDER_ID=<идентификатор каталога>
    YANDEX_DEFAULT_MODEL=yandexgpt-lite
+   COMETAPI_KEY=<API-ключ CometAPI>
    ```
+
+   Для генерации изображений также можно задать `COMETAPI_DEFAULT_IMAGE_MODEL`,
+   `IMAGE_TTL_SECONDS`, `IMAGE_QUEUE_MAXSIZE` и `YANDEX_IMAGE_MODEL`. Значения
+   по умолчанию перечислены в `docker-compose.yml`.
 
 2. Запустите приложение с помощью Docker Compose:
 
@@ -102,8 +107,11 @@ export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/mydb
 
 - `POST /ai/generate` — генерация текста по промпту;
 - `POST /ai/chat` — чат с AI моделью;
-- `GET /ai/models` — список доступных AI моделей;
-- `GET /ai/queue/status` — статус очереди AI запросов.
+- `GET /ai/models` — список доступных текстовых моделей Yandex AI Studio;
+- `POST /ai/images` — постановка генерации изображения в очередь;
+- `GET /ai/images/{task_id}` — статус задачи или готовое изображение;
+- `GET /ai/image-models` — модели изображений CometAPI и YandexART;
+- `GET /ai/queue/status` — статус очередей AI запросов.
 
 #### Настройка
 
@@ -113,6 +121,7 @@ export DATABASE_URL=postgresql+psycopg://user:password@localhost:5432/mydb
 export YANDEX_API_KEY=<API-ключ сервисного аккаунта>
 export YANDEX_FOLDER_ID=<идентификатор каталога>
 export YANDEX_DEFAULT_MODEL=yandexgpt-lite   # опционально
+export COMETAPI_KEY=<API-ключ CometAPI>       # для генерации изображений
 ```
 
 `model` можно указывать коротким именем (`yandexgpt-lite`) или полным URI
@@ -142,6 +151,51 @@ curl -X GET "http://localhost:8001/ai/queue/status"
 Доступные модели определяются каталогом: YandexGPT (`yandexgpt`,
 `yandexgpt-lite`, `yandexgpt-5-pro` и др.), а также открытые модели
 (`deepseek-v4-flash`, `qwen3.6-35b-a3b`, `gpt-oss-120b`, `aliceai-llm` и др.).
+
+### Генерация изображений
+
+Поддерживаются CometAPI и YandexART. Задачи выполняются в очереди в памяти
+процесса. Готовые изображения хранятся 15 минут.
+
+Список моделей с минимальной стоимостью изображения до 0.3 USD:
+
+```bash
+curl -X GET "http://localhost:8001/ai/image-models"
+```
+
+В ответе два отдельных списка: `cometapi_models` и `yandex_models`.
+Для CometAPI цена фильтруется по минимальной стоимости одного изображения.
+Для YandexART используется оценка из `YANDEX_IMAGE_PRICE_USD`, по умолчанию
+0.01 USD. Сейчас в каталоге Cleverbots доступна модель
+`aliceai-image-art-3.0`; список можно расширить через `YANDEX_IMAGE_MODELS`.
+
+Поставить задачу в очередь:
+
+```bash
+curl -X POST "http://localhost:8001/ai/images" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Рыжий кот в стиле аниме, мягкие пастельные тона",
+    "model": "gemini-3.1-flash-image-preview",
+    "aspect_ratio": "1:1"
+  }'
+```
+
+Для YandexART используйте модель `aliceai-image-art-3.0`. Промпт для неё
+ограничен 500 символами.
+
+Получить статус или готовое изображение:
+
+```bash
+curl -X GET "http://localhost:8001/ai/images/<task_id>" --output image.jpg
+```
+
+Пока задача выполняется, сервер возвращает `202` и JSON со статусом. Когда
+изображение готово, возвращается `200` и бинарный файл с правильным
+`Content-Type`. Готовые изображения удаляются через 15 минут.
+
+Запуск через Docker требует `COMETAPI_KEY` в `.env` на сервере. Ключ
+YandexART берётся из существующих `YANDEX_API_KEY` и `YANDEX_FOLDER_ID`.
 
 ## Деплой на VPS
 
